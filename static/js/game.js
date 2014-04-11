@@ -1,5 +1,10 @@
-var canvas = $('canvas').get(0);
-var ctx = canvas.getContext("2d");
+$(document).ready(function() {
+
+var hudCanvas = $('#hud').get(0);
+var hudctx = hudCanvas.getContext("2d");
+
+var gCanvas = $('#game').get(0);
+var gctx = gCanvas.getContext("2d");
 
 var loop_counter = 0;
 var next_step = 0;
@@ -20,11 +25,11 @@ var startAnimation = function(){
 
         var recursiveAnim = function() {
             mainloop();
-            requestAnimFrame( recursiveAnim, canvas );
+            requestAnimFrame( recursiveAnim, hudCanvas );
         };
 
         // start the mainloop
-        requestAnimFrame( recursiveAnim, canvas );
+        requestAnimFrame( recursiveAnim, hudCanvas );
     } else {
         var ONE_FRAME_TIME = 1000.0 / 60.0 ;
         setInterval( mainloop, ONE_FRAME_TIME );
@@ -32,7 +37,7 @@ var startAnimation = function(){
 };
 
 
-var freq = 30;
+var freq = 60;
 var delay = 1000 / freq;
 var avgBrowserDelay = 1.0 / 60;
 var avgDelay = 1.0 / freq;
@@ -67,82 +72,66 @@ var mainloop = function(){
 }
 
 
-var clearCanvas = function() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+var clearHudCanvas = function() {
+    hudctx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
 }
 
 
 var drawGame = function() {
-    clearCanvas();
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    clearHudCanvas();
+    hudctx.fillStyle = bg;
+    hudctx.fillRect(0, 0, hudCanvas.width, hudCanvas.height);
     drawFps();
     drawSnakes();
 }
 
 var drawFps = function() {
-    ctx.fillStyle = 'yellow';
-    ctx.font = "14px Lucida Console";
-    ctx.fillText("Fps: " + Math.floor(10000 / avgBrowserDelay)/10, 0, 20);
-    ctx.fillText("Game Fps: " + Math.floor(10000 / avgDelay)/10, 0, 40);
-    ctx.fillText("delay: " + delay, 0, 60);
-    ctx.fillText("it: " + loop_counter, 0, 80);
-    ctx.fillText("Game time: " + (now - startTime) / 1000, 0, 100);
+    hudctx.fillStyle = 'yellow';
+    hudctx.font = "14px Lucida Console";
+    hudctx.fillText("Fps: " + Math.floor(10000 / avgBrowserDelay)/10, 0, 20);
+    hudctx.fillText("Game Fps: " + Math.floor(10000 / avgDelay)/10, 0, 40);
+    hudctx.fillText("delay: " + delay, 0, 60);
+    hudctx.fillText("it: " + loop_counter, 0, 80);
+    hudctx.fillText("Game time: " + (now - startTime) / 1000, 0, 100);
 
-    ctx.strokeStyle = 'yellow';
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height)
-    for (var i = 0; i < canvas.width; i++){
-        if (canvas.width - i > fpss.length)
+    hudctx.strokeStyle = 'yellow';
+    hudctx.beginPath();
+    hudctx.moveTo(0, hudCanvas.height)
+    for (var i = 0; i < hudCanvas.width; i++){
+        if (hudCanvas.width - i > fpss.length)
             continue;
-        ctx.lineTo(i, canvas.height - fpss[fpss.length - canvas.width + i]);
+        hudctx.lineTo(i, hudCanvas.height - fpss[fpss.length - hudCanvas.width + i]);
     }
-    ctx.stroke();
-    ctx.moveTo(0, canvas.height)
-    for (var i = 0; i < canvas.width; i++){
-        if (canvas.width - i > gfpss.length)
+    hudctx.stroke();
+    hudctx.moveTo(0, hudCanvas.height)
+    for (var i = 0; i < hudCanvas.width; i++){
+        if (hudCanvas.width - i > gfpss.length)
             continue;
-        ctx.lineTo(i, canvas.height - gfpss[gfpss.length - canvas.width + i]);
+        hudctx.lineTo(i, hudCanvas.height - gfpss[gfpss.length - hudCanvas.width + i]);
     }
-    ctx.stroke();
+    hudctx.stroke();
 
 }
 
 
 
-$(document).ready(function() {
 
-        // start the loop
-        startAnimation();
+// start the loop
+startAnimation();
 
-        // listen to key press
-        //window.addEventListener('keyup', function(event){Keys.onKeyup(event);}, false);
-        //window.addEventListener('keydown', function(event){Keys.onKeydown(event);}, false);
-
-});
-
-
+// listen to key press
+window.addEventListener('keyup', function(event){Keys.onKeyup(event);}, false);
+window.addEventListener('keydown', function(event){Keys.onKeydown(event);}, false);
 
 var inbox = new ReconnectingWebSocket("ws://"+ location.host + "/receive");
 var outbox = new ReconnectingWebSocket("ws://"+ location.host + "/submit");
 
-snakes = [];
-
-drawSnakes = function(){
-    for(var i=0; i<snakes.length; i++){
-        ctx.fillStyle = 'green';
-        ctx.fillRect(snakes[i].x, snakes[i].y, 10, 10);
-
-        ctx.fillText(snakes[i].name, 200, 20 + 20*i);
-    }
-}
-
 inbox.onmessage = function(message) {
-  console.log('received: ' + message)
-  console.log('received data: ' + message.data)
-  var data = JSON.parse(message.data);
-  console.log('received data data: ' + data)
-  snakes = data;
+console.log('received: ' + message)
+console.log('received data: ' + message.data)
+var data = JSON.parse(message.data);
+console.log('received data data: ' + data)
+snakes = data;
 };
 
 inbox.onclose = function(){
@@ -155,3 +144,55 @@ outbox.onclose = function(){
     console.log('outbox closed');
     this.outbox = new WebSocket(outbox.url);
 };
+
+
+
+
+
+snakes = [];
+
+drawSnakes = function(){
+    for(var i=0; i<snakes.length; i++){
+        gctx.fillStyle = snakes[i].color;
+        gctx.fillRect(snakes[i].x, snakes[i].y, 5, 5);
+
+        gctx.fillText(snakes[i].name, 200, 20 + 20*i);
+    }
+}
+
+var Keys = {
+    UP: [87, 38], // w
+    DOWN: [83, 40], // s
+    LEFT: [65, 37], // a
+    RIGHT: [68, 39], // d
+
+    _pressed: {},
+
+    isDown: function(keyCode) {
+        return this._pressed[keyCode[0]] || this._pressed[keyCode[1]];
+    },
+
+    onKeydown: function(event) {
+        if(this._pressed[event.keyCode]) return;
+        if(event.keyCode === this.LEFT[1]){
+            outbox.send(JSON.stringify({ command: "left"}));
+        }
+        if(event.keyCode === this.RIGHT[1]){
+            outbox.send(JSON.stringify({ command: "right"}));
+        }
+
+        this._pressed[event.keyCode] = true;
+    },
+
+    onKeyup: function(event) {
+        if(event.keyCode === this.LEFT[1] && !this.isDown(this.RIGHT)){
+            outbox.send(JSON.stringify({ command: "straight"}));
+        }
+        if(event.keyCode === this.RIGHT[1] && !this.isDown(this.LEFT)){
+            outbox.send(JSON.stringify({ command: "straight"}));
+        }
+        delete this._pressed[event.keyCode];
+    }
+};
+
+});

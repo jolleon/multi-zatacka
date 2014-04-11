@@ -28,7 +28,7 @@ def submit(ws):
     player = Player()
     zatacka.register_player(player)
     while ws.socket is not None:
-        gevent.sleep()
+        gevent.sleep(0.01)
         message = ws.receive()
 
         if message:
@@ -43,21 +43,34 @@ def receive(ws):
     zatacka.register_observer(ws)
 
     while ws.socket is not None:
-        gevent.sleep()
+        gevent.sleep(0.01)
+
+
+nSnakes = 0
+# TODO: needs lock?
+def get_id():
+    nSnakes += 1
+    return nSnakes
 
 
 class Snake(object):
 
     def __init__(self):
+        self.id = get_id()
         self.speed = 2
-        self.turn_speed = 0.2
+        self.turn_speed = 0.1
+        self.radius = 2
         self.direction = random.random() * 2 * math.pi
         self.x = random.random() * 400
         self.y = random.random() * 400
+        self.old_x = self.x
+        self.old_y = self.y
 
     def move(self):
+        self.old_x = self.x
+        self.old_y = self.y
         self.x += self.speed * math.cos(self.direction)
-        self.y += self.speed * math.sin(self.direction)
+        self.y -= self.speed * math.sin(self.direction)
 
         if self.x > 400: self.x = 0
         if self.y > 400: self.y = 0
@@ -70,6 +83,21 @@ class Snake(object):
     def turn_left(self):
         self.direction += self.turn_speed
 
+    def udpate_grid(self, grid):
+        dx = self.x - self.old_x
+        dy = self.y - self.old_y
+        length = max(dx, dy)
+        for i in xrange(length):
+            x = self.old_x + i/length * dx
+            y = self.old_y + i/length * dy
+            for w in xrange(2 * self.radius):
+                for h in xrange(2 * self.radius):
+                    xx = round(x - self.radius + w)
+                    yy = round(y - self.radius + h)
+                    grid[xx][yy] = self.id
+
+
+COLORS = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff']
 
 class Player(object):
 
@@ -77,24 +105,27 @@ class Player(object):
         self.score = 0
         self.name = 'guest'
         self.snake = Snake()
-        self.has_played = False
+        self.command = None
+        self.color = COLORS[random.randint(0, len(COLORS)-1)]
 
     def process(self, message):
+        message = json.loads(message)
         if 'name' in message:
             self.name = message['name']
-        if 'command' in message and not self.has_played:
-            if message['command'] == 'left':
-                snake.turn_left()
-            if message['command'] == 'right':
-                snake.turn_right()
-            self.has_played = True
+        if 'command' in message:
+            if message['command'] in ('left', 'right', 'straight'):
+                self.command = message['command']
 
-    def update(self):
+    def update(self, grid):
+        if self.command == 'left':
+            self.snake.turn_left()
+        if self.command == 'right':
+            self.snake.turn_right()
         self.snake.move()
-        self.has_played = False
+        self.snake.update_grid(grid)
 
     def serialize(self):
-        return {'name': self.name, 'x': self.snake.x, 'y': self.snake.y}
+        return {'name': self.name, 'x': self.snake.x, 'y': self.snake.y, 'color': self.color}
 
 
 class Zatacka(object):
@@ -102,6 +133,10 @@ class Zatacka(object):
     def __init__(self):
         self.clients = list()
         self.players = list()
+        self.grid = self.empty_grid(800, 600)
+
+    def empty_grid(self, w, h):
+        return [[False] * h for _ in xrange(w)]
 
     def register_observer(self, socket):
         self.clients.append(socket)
