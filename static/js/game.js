@@ -127,11 +127,9 @@ var inbox = new ReconnectingWebSocket("ws://"+ location.host + "/receive");
 var outbox = new ReconnectingWebSocket("ws://"+ location.host + "/submit");
 
 inbox.onmessage = function(message) {
-console.log('received: ' + message)
-console.log('received data: ' + message.data)
-var data = JSON.parse(message.data);
-console.log('received data data: ' + data)
-snakes = data;
+    //console.log('received data: ' + message.data)
+    var data = JSON.parse(message.data);
+    snakesQueue.push(data);
 };
 
 inbox.onclose = function(){
@@ -149,15 +147,19 @@ outbox.onclose = function(){
 
 
 
-snakes = [];
+snakesQueue = [];
 
 drawSnakes = function(){
-    for(var i=0; i<snakes.length; i++){
-        gctx.fillStyle = snakes[i].color;
-        gctx.fillRect(snakes[i].x, snakes[i].y, 5, 5);
+    for(var j=0; j<snakesQueue.length; j++){
+        snakes = snakesQueue[j];
+        for(var i=0; i<snakes.length; i++){
+            gctx.fillStyle = snakes[i].color;
+            gctx.fillRect(snakes[i].x, snakes[i].y, 5, 5);
 
-        gctx.fillText(snakes[i].name, 200, 20 + 20*i);
+            gctx.fillText(snakes[i].name, 200, 20 + 20*i);
+        }
     }
+    snakesQueue = [];
 }
 
 var Keys = {
