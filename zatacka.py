@@ -206,14 +206,25 @@ class Zatacka(object):
 
     def register_observer(self, socket):
         self.clients.append(socket)
+        self.send_size(socket)
         for step in self.game_history:
             self.send(socket, step)
+        self.broadcast_names()
+        self.send_scores(socket)
 
     def broadcast_names(self):
         names = [{'id': player.id, 'name': player.name}
                 for player in self.players]
         for client in self.clients:
-            self.send(client, names)
+            self.send(client, {'type': 'names', 'content': names})
+
+    def send_scores(self, client):
+        scores = [{'id': player.id, 'score': player.score}
+                for player in self.players]
+        self.send(client, {'type': 'score', 'content': scores})
+
+    def send_size(self, client):
+        self.send(client, {'type': 'size', 'width': self.width, 'height': self.height})
 
     def register_player(self, player):
         self.players.append(player)
@@ -231,14 +242,14 @@ class Zatacka(object):
     def run(self):
         while True:
             app.logger.info('creating new game')
-            self.grid = Grid(600, 400)
+            self.grid = Grid(self.width, self.height)
             self.game_history = []
             self.start_time = time.time()
             self.frame_time = 0.0133
             self.frame = 0
 
             for client in self.clients:
-                self.send(client, {'type': 'size', 'width': self.width, 'height': self.height})
+                self.send_size(client)
 
             for client in self.clients:
                 self.send(client, {'type': 'restart'})
@@ -274,9 +285,7 @@ class Zatacka(object):
                 for client in self.clients:
                     self.send(client, {'type': 'step', 'content': data})
                     if someone_died:
-                        scores = [{'id': player.id, 'score': player.score}
-                                for player in self.players]
-                        self.send(client, {'type': 'score', 'content': scores})
+                        self.send_scores(client)
 
                 next_frame_time = self.start_time + self.frame * self.frame_time
                 sleep_time = max(0, next_frame_time - time.time())

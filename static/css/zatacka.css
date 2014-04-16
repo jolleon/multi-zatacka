@@ -3,3 +3,7 @@ body {
     color: white;
     font: 16px "Lucida Console";
 }
+
+#game {
+    border: solid 4px yellow;
+}

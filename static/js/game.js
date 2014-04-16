@@ -139,6 +139,12 @@ inbox.onmessage = function(message) {
         gCanvas.width = data.width;
         gCanvas.height = data.height;
     }
+    if (data.type === 'names') {
+        $('#scores').html('');
+        for (var i=0; i<data.names.length; i++){
+            $('#scores').append(data.names[i] + '<br>')
+        }
+    }
 };
 
 inbox.onclose = function(){
