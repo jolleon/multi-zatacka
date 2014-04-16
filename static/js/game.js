@@ -129,7 +129,16 @@ var outbox = new ReconnectingWebSocket("ws://"+ location.host + "/submit");
 inbox.onmessage = function(message) {
     //console.log('received data: ' + message.data)
     var data = JSON.parse(message.data);
-    snakesQueue.push(data);
+    if (data.type === 'step') {
+        snakesQueue.push(data.content);
+    }
+    if (data.type === 'restart') {
+        gctx.clearRect(0, 0, gCanvas.width, gCanvas.height);
+    }
+    if (data.type === 'size') {
+        gCanvas.width = data.width;
+        gCanvas.height = data.height;
+    }
 };
 
 inbox.onclose = function(){
