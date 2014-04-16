@@ -49,6 +49,7 @@ def receive(ws):
 nSnakes = 0
 # TODO: needs lock?
 def get_id():
+    global nSnakes
     nSnakes += 1
     return nSnakes
 
@@ -83,18 +84,45 @@ class Snake(object):
     def turn_left(self):
         self.direction += self.turn_speed
 
-    def udpate_grid(self, grid):
+    def update_grid(self, grid):
         dx = self.x - self.old_x
         dy = self.y - self.old_y
-        length = max(dx, dy)
+        length = int(max(abs(dx), abs(dy)))
         for i in xrange(length):
             x = self.old_x + i/length * dx
             y = self.old_y + i/length * dy
             for w in xrange(2 * self.radius):
                 for h in xrange(2 * self.radius):
-                    xx = round(x - self.radius + w)
-                    yy = round(y - self.radius + h)
+                    xx = int(round(x - self.radius + w))
+                    yy = int(round(y - self.radius + h))
                     grid[xx][yy] = self.id
+
+    def collision(self, grid):
+        sensors_x = [int(round(self.x + self.radius * math.cos(self.direction + math.pi * i / 6)))
+                     for i in xrange(-2, 3)]
+        sensors_y = [int(round(self.y - self.radius * math.sin(self.direction + math.pi * i / 6)))
+                     for i in xrange(-2, 3)]
+        if any(grid[x][y] for (x, y) in zip(sensors_x, sensors_y)):
+            s = ''
+            xx = (min(sensors_x) - 10, max(sensors_x) + 10)
+            yy = (min(sensors_y) - 10, max(sensors_y) + 10)
+            s += 'id: %d\n' % self.id
+            s += 'xx: %s, yy: %s\n' % (xx, yy)
+            s += 'x, y: %d, %d   old: %d, %d\n' % (self.x, self.y, self.old_x, self.old_y)
+            for y in range(*yy):
+                s += ''.join(
+                    '%d%s' % (grid[x][y],
+                        '*' if x == int(self.x) and y == int(self.y)
+                        else 'X' if x == int(self.old_x) and y == int(self.old_y)
+                        else '!' if (x, y) in zip(sensors_x, sensors_y)
+                        else ' ')
+                    for x in range(*xx)
+                )
+                s += '\n'
+            app.logger.info(s)
+            return True
+
+
 
 
 COLORS = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff']
@@ -102,6 +130,7 @@ COLORS = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff']
 class Player(object):
 
     def __init__(self):
+        self.dead = False
         self.score = 0
         self.name = 'guest'
         self.snake = Snake()
@@ -117,11 +146,15 @@ class Player(object):
                 self.command = message['command']
 
     def update(self, grid):
+        if self.dead:
+            return
         if self.command == 'left':
             self.snake.turn_left()
         if self.command == 'right':
             self.snake.turn_right()
         self.snake.move()
+        if self.snake.collision(grid):
+            self.dead = True
         self.snake.update_grid(grid)
 
     def serialize(self):
@@ -136,7 +169,7 @@ class Zatacka(object):
         self.grid = self.empty_grid(800, 600)
 
     def empty_grid(self, w, h):
-        return [[False] * h for _ in xrange(w)]
+        return [[0] * h for _ in xrange(w)]
 
     def register_observer(self, socket):
         self.clients.append(socket)
@@ -158,7 +191,7 @@ class Zatacka(object):
         while True:
             self.frame += 1
             for player in self.players:
-                player.update()
+                player.update(self.grid)
 
             data = list()
             for player in self.players:
