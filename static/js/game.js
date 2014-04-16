@@ -139,10 +139,13 @@ inbox.onmessage = function(message) {
         gCanvas.width = data.width;
         gCanvas.height = data.height;
     }
-    if (data.type === 'names') {
-        $('#scores').html('');
-        for (var i=0; i<data.names.length; i++){
-            $('#scores').append(data.names[i] + '<br>')
+    if (data.type === 'players') {
+        $('#players').html('');
+        for (var i=0; i<data.content.length; i++){
+            player = data.content[i];
+            $('#players').append('<div style="color:' + player.color + '">' +
+                    player.id + ' - ' + player.name +
+                    ': ' + player.score + '</div>')
         }
     }
 };

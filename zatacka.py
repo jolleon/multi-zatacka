@@ -207,24 +207,25 @@ class Zatacka(object):
     def register_observer(self, socket):
         self.clients.append(socket)
         self.send_size(socket)
-        self.broadcast_names()
-        self.send_scores(socket)
+        self.broadcast_players()
         for step in self.game_history:
             self.send_frame(socket, step)
 
-    def broadcast_names(self):
-        names = [{'id': player.id, 'name': player.name}
-                for player in self.players]
+    def broadcast_players(self):
         for client in self.clients:
-            self.send(client, {'type': 'names', 'content': names})
+            self.send_scores(client)
 
     def send_frame(self, client, data):
         self.send(client, {'type': 'step', 'content': data})
 
     def send_scores(self, client):
-        scores = [{'id': player.id, 'score': player.score}
-                for player in self.players]
-        self.send(client, {'type': 'score', 'content': scores})
+        players = [{
+            'id': player.id,
+            'name': player.name,
+            'score': player.score,
+            'color': player.color,
+            } for player in self.players]
+        self.send(client, {'type': 'players', 'content': players})
 
     def send_size(self, client):
         self.send(client, {'type': 'size', 'width': self.width, 'height': self.height})
@@ -257,6 +258,7 @@ class Zatacka(object):
             for client in self.clients:
                 self.send(client, {'type': 'restart'})
 
+            self.broadcast_players()
             for player in self.players:
                 player.alive = True
 
