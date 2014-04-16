@@ -98,10 +98,13 @@ class Snake(object):
                     grid[xx][yy] = self.id
 
     def collision(self, grid):
-        sensors_x = [int(round(self.x + self.radius * math.cos(self.direction + math.pi * i / 6)))
-                     for i in xrange(-2, 3)]
-        sensors_y = [int(round(self.y - self.radius * math.sin(self.direction + math.pi * i / 6)))
-                     for i in xrange(-2, 3)]
+        sensors_x = [int(round(
+            self.x + self.radius * math.cos(self.direction + math.pi * i / 6)))
+            for i in xrange(-2, 3)]
+        sensors_y = [int(round(
+            self.y - self.radius * math.sin(self.direction + math.pi * i / 6)))
+            for i in xrange(-2, 3)]
+
         if any(grid[x][y] for (x, y) in zip(sensors_x, sensors_y)):
             s = ''
             xx = (min(sensors_x) - 10, max(sensors_x) + 10)
@@ -167,12 +170,15 @@ class Zatacka(object):
         self.clients = list()
         self.players = list()
         self.grid = self.empty_grid(800, 600)
+        self.game_history = []
 
     def empty_grid(self, w, h):
         return [[0] * h for _ in xrange(w)]
 
     def register_observer(self, socket):
         self.clients.append(socket)
+        for step in self.game_history:
+            self.send(socket, step)
 
     def register_player(self, player):
         self.players.append(player)
@@ -197,6 +203,7 @@ class Zatacka(object):
             for player in self.players:
                 data.append(player.serialize())
 
+            self.game_history.append(data)
             for client in self.clients:
                 self.send(client, data)
 
