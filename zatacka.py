@@ -81,14 +81,14 @@ class Grid(object):
 
 class Snake(object):
 
-    def __init__(self, id):
+    def __init__(self, id, x, y):
         self.id = id
+        self.x = x
+        self.y = y
         self.speed = 2
         self.turn_speed = 0.05
         self.radius = 2
         self.direction = random.random() * 2 * math.pi
-        self.x = random.random() * 400
-        self.y = random.random() * 400
         self.old_x = self.x
         self.old_y = self.y
 
@@ -160,6 +160,7 @@ def get_id():
     last_pid += 1
     return last_pid
 
+
 class Player(object):
 
     def __init__(self):
@@ -168,12 +169,10 @@ class Player(object):
         self.name = 'guest'
         self.command = None
         self.color = COLORS[random.randint(0, len(COLORS)-1)]
-        self.spawn()
 
-    def spawn(self):
+    def spawn(self, x, y):
         self.alive = True
-        self.snake = Snake(self.id)
-
+        self.snake = Snake(self.id, x, y)
 
     def process(self, message):
         message = json.loads(message)
@@ -195,8 +194,14 @@ class Player(object):
             self.alive = False
         self.snake.update_grid(grid)
 
-    def serialize(self):
+    def get_snake(self):
         return {'id': self.id, 'x': self.snake.x, 'y': self.snake.y, 'color': self.color}
+
+
+def too_close(x, y, xx, yy, min_dist):
+    dx = x - xx
+    dy = y - yy
+    return dx * dx + dy * dy < min_dist * min_dist
 
 
 class Zatacka(object):
@@ -205,8 +210,8 @@ class Zatacka(object):
         self.clients = list()
         self.players = list()
         self.game_history = []
-        self.width = 800
-        self.height = 600
+        self.width = 600
+        self.height = 400
 
 
     def register_observer(self, socket):
@@ -248,6 +253,19 @@ class Zatacka(object):
         except Exception:
             self.clients.remove(client)
 
+    def spawn_players(self):
+        positions = []
+        for player in self.players:
+            need_spot = True
+            while need_spot:
+                x = random.random() * self.width
+                y = random.random() * self.height
+                need_spot = False
+                for (xx, yy) in positions:
+                    if too_close(x, y, xx, yy, 20):
+                        need_spot = True
+            player.spawn(x, y)
+
     def run(self):
         while True:
             app.logger.info('creating new game')
@@ -259,13 +277,11 @@ class Zatacka(object):
 
             for client in self.clients:
                 self.send_size(client)
-
             for client in self.clients:
                 self.send(client, {'type': 'restart'})
-
             self.broadcast_players()
-            for player in self.players:
-                player.spawn()
+
+            self.spawn_players()
 
             alive_players = copy.copy(self.players)
 
@@ -276,7 +292,7 @@ class Zatacka(object):
 
                 data = list()
                 for player in alive_players:
-                    data.append(player.serialize())
+                    data.append(player.get_snake())
 
                 self.game_history.append(data)
 
