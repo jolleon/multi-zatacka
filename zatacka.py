@@ -26,8 +26,10 @@ def index():
 
 @sockets.route('/submit')
 def submit(ws):
-    player = Player()
-    zatacka.register_player(player)
+    player = zatacka.register_player()
+    if player is None: # there were already 6 players in the game
+        return
+
     while ws.socket is not None:
         gevent.sleep(0.01)
         message = ws.receive()
@@ -110,10 +112,6 @@ class Snake(object):
         self.direction += self.turn_speed
 
     def update_grid(self, grid):
-        dx = self.x - self.old_x
-        dy = self.y - self.old_y
-        #x = self.old_x + i/length * dx
-        #y = self.old_y + i/length * dy
         x = self.old_x
         y = self.old_y
         for w in xrange(2 * self.radius):
@@ -153,22 +151,15 @@ class Snake(object):
 
 COLORS = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff']
 
-last_pid = 0
-# TODO: needs lock?
-def get_id():
-    global last_pid
-    last_pid += 1
-    return last_pid
-
 
 class Player(object):
 
-    def __init__(self):
-        self.id = get_id()
+    def __init__(self, id):
+        self.id = id
         self.score = 0
         self.name = 'guest'
         self.command = None
-        self.color = COLORS[random.randint(0, len(COLORS)-1)]
+        self.color = COLORS[id - 1]
 
     def spawn(self, x, y):
         self.alive = True
@@ -240,8 +231,17 @@ class Zatacka(object):
     def send_size(self, client):
         self.send(client, {'type': 'size', 'width': self.width, 'height': self.height})
 
-    def register_player(self, player):
-        self.players.append(player)
+    def register_player(self):
+        if len(self.players) < 6:
+            ids = [player.id for player in self.players]
+            # player ids must start at 1 because 0 on the grid means nothing
+            free_ids = [i for i in range(1, 7) if i not in ids]
+            player = Player(free_ids[0])
+            app.logger.info('created player %d' % player.id)
+            self.players.append(player)
+            return player
+        else:
+            return None
 
     def remove_player(self, player):
         self.players.remove(player)
