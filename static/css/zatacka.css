@@ -1,3 +1,5 @@
 body {
-    background: black
+    background: black;
+    color: white;
+    font: 16px "Lucida Console";
 }

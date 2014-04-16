@@ -1,3 +1,4 @@
+import copy
 import os
 import time
 import logging
@@ -161,6 +162,7 @@ COLORS = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff']
 class Player(object):
 
     def __init__(self):
+        self.id = get_id()
         self.alive = True
         self.score = 0
         self.name = 'guest'
@@ -207,6 +209,12 @@ class Zatacka(object):
         for step in self.game_history:
             self.send(socket, step)
 
+    def broadcast_names(self):
+        names = [{'id': player.id, 'name': player.name}
+                for player in self.players]
+        for client in self.clients:
+            self.send(client, names)
+
     def register_player(self, player):
         self.players.append(player)
 
@@ -238,18 +246,37 @@ class Zatacka(object):
             for player in self.players:
                 player.alive = True
 
-            while any(player.alive for player in self.players):
+            alive_players = copy.copy(self.players)
+
+            while len(alive_players) > 0:
                 self.frame += 1
-                for player in self.players:
+                for player in alive_players:
                     player.update(self.grid)
 
                 data = list()
-                for player in self.players:
+                for player in alive_players:
                     data.append(player.serialize())
 
                 self.game_history.append(data)
+
+                # remove dead players only after broadcasting their last state
+                someone_died = False
+                for player in alive_players:
+                    if not player.alive:
+                        someone_died = True
+                        alive_players.remove(player)
+
+                if someone_died:
+                    app.logger.info('someone died')
+                    for player in alive_players:
+                        player.score += 1
+
                 for client in self.clients:
                     self.send(client, {'type': 'step', 'content': data})
+                    if someone_died:
+                        scores = [{'id': player.id, 'score': player.score}
+                                for player in self.players]
+                        self.send(client, {'type': 'score', 'content': scores})
 
                 next_frame_time = self.start_time + self.frame * self.frame_time
                 sleep_time = max(0, next_frame_time - time.time())
