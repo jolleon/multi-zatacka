@@ -191,7 +191,7 @@ class Player(object):
         self.snake.update_grid(grid)
 
     def serialize(self):
-        return {'name': self.name, 'x': self.snake.x, 'y': self.snake.y, 'color': self.color}
+        return {'id': self.id, 'x': self.snake.x, 'y': self.snake.y, 'color': self.color}
 
 
 class Zatacka(object):

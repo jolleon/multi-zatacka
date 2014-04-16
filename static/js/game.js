@@ -173,8 +173,6 @@ drawSnakes = function(){
         for(var i=0; i<snakes.length; i++){
             gctx.fillStyle = snakes[i].color;
             gctx.fillRect(snakes[i].x, snakes[i].y, 5, 5);
-
-            gctx.fillText(snakes[i].name, 200, 20 + 20*i);
         }
     }
     snakesQueue = [];
