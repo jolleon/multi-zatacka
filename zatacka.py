@@ -77,18 +77,12 @@ class Grid(object):
         self.grid[x][y] = v
 
 
-nSnakes = 0
-# TODO: needs lock?
-def get_id():
-    global nSnakes
-    nSnakes += 1
-    return nSnakes
 
 
 class Snake(object):
 
-    def __init__(self):
-        self.id = get_id()
+    def __init__(self, id):
+        self.id = id
         self.speed = 2
         self.turn_speed = 0.05
         self.radius = 2
@@ -159,16 +153,27 @@ class Snake(object):
 
 COLORS = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff']
 
+last_pid = 0
+# TODO: needs lock?
+def get_id():
+    global last_pid
+    last_pid += 1
+    return last_pid
+
 class Player(object):
 
     def __init__(self):
         self.id = get_id()
-        self.alive = True
         self.score = 0
         self.name = 'guest'
-        self.snake = Snake()
         self.command = None
         self.color = COLORS[random.randint(0, len(COLORS)-1)]
+        self.spawn()
+
+    def spawn(self):
+        self.alive = True
+        self.snake = Snake(self.id)
+
 
     def process(self, message):
         message = json.loads(message)
@@ -260,7 +265,7 @@ class Zatacka(object):
 
             self.broadcast_players()
             for player in self.players:
-                player.alive = True
+                player.spawn()
 
             alive_players = copy.copy(self.players)
 
